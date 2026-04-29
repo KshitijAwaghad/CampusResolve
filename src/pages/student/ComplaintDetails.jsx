@@ -1,5 +1,6 @@
 import { useParams } from "react-router-dom";
 import { useComplaints } from "../../context/ComplaintContext";
+import { useAuth } from "../../context/AuthContext";
 import Card from "../../components/ui/Card";
 import PriorityBadge from "../../components/PriorityBadge";
 
@@ -8,9 +9,12 @@ const stages = ["Submitted", "Assigned", "In Progress", "Resolved", "Closed", "E
 function ComplaintDetails() {
   const { id } = useParams();
   const { complaints } = useComplaints();
+  const { userEmail, userName } = useAuth();
   const complaint = complaints.find((c) => c.id === id);
 
   if (!complaint) return <p>Complaint not found.</p>;
+  const isOwner = complaint.createdByEmail === userEmail || (!complaint.createdByEmail && complaint.createdBy === userName);
+  if (!isOwner) return <p>You do not have access to this complaint.</p>;
 
   return (
     <div className="space-y-4">

@@ -1,14 +1,15 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Card from "../../components/ui/Card";
 import Input from "../../components/ui/Input";
 import Select from "../../components/ui/Select";
 import Button from "../../components/ui/Button";
-import PriorityBadge from "../../components/PriorityBadge";
 import { locationTypes } from "../../data/mockCategories";
 import { useComplaints } from "../../context/ComplaintContext";
+import { useAuth } from "../../context/AuthContext";
 
 function SubmitComplaint() {
-  const { addComplaint, detectCategory, calculatePriorityScore, scoreToPriority } = useComplaints();
+  const { addComplaint } = useComplaints();
+  const { userName, userEmail } = useAuth();
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -16,18 +17,9 @@ function SubmitComplaint() {
     specificLocation: "",
     image: ""
   });
-  const [suggestedCategory, setSuggestedCategory] = useState("Building");
-
-  const score = useMemo(
-    () => calculatePriorityScore({ category: suggestedCategory, description: form.description, locationType: form.locationType }),
-    [calculatePriorityScore, form.description, form.locationType, suggestedCategory]
-  );
-  const priority = scoreToPriority(score);
-
   const onField = (key, value) => {
     const next = { ...form, [key]: value };
     setForm(next);
-    setSuggestedCategory(detectCategory(next.description, next.locationType));
   };
 
   const onFile = (file) => {
@@ -37,11 +29,25 @@ function SubmitComplaint() {
     reader.readAsDataURL(file);
   };
 
-  const submit = (e) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  const submit = async (e) => {
     e.preventDefault();
-    addComplaint({ ...form, createdBy: "Student" });
-    setForm({ title: "", description: "", locationType: "Building", specificLocation: "", image: "" });
-    setSuggestedCategory("Building");
+    setIsSubmitting(true);
+    setError("");
+    try {
+      await addComplaint({
+        ...form,
+        createdBy: userName || "Student",
+        createdByEmail: userEmail || ""
+      });
+      setForm({ title: "", description: "", locationType: "Building", specificLocation: "", image: "" });
+    } catch (err) {
+      setError(err.message || "Failed to submit complaint.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -60,8 +66,18 @@ function SubmitComplaint() {
             required
           />
         </label>
-        <Select label="Location Type" value={form.locationType} onChange={(e) => onField("locationType", e.target.value)} options={locationTypes} />
-        <Input label="Specific Location" value={form.specificLocation} onChange={(e) => onField("specificLocation", e.target.value)} required />
+        <Select
+          label="Location Type"
+          value={form.locationType}
+          onChange={(e) => onField("locationType", e.target.value)}
+          options={locationTypes}
+        />
+        <Input
+          label="Specific Location"
+          value={form.specificLocation}
+          onChange={(e) => onField("specificLocation", e.target.value)}
+          required
+        />
 
         <label className="block space-y-2">
           <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Upload Photo</span>
@@ -74,14 +90,15 @@ function SubmitComplaint() {
             <Button type="button" variant="danger" className="mt-2" onClick={() => onField("image", "")}>Remove Image</Button>
           </div>
         )}
+        {error && (
+          <p className="rounded-xl border border-rose-300 bg-rose-100/80 p-3 text-sm font-semibold text-rose-600 dark:border-rose-900 dark:bg-rose-900/30">
+            {error}
+          </p>
+        )}
 
-        <div className="flex flex-wrap items-center gap-3 rounded-xl bg-slate-100 p-3 dark:bg-slate-800">
-          <p className="text-sm">AI Category: <span className="font-semibold">{suggestedCategory}</span></p>
-          <p className="text-sm">Score: <span className="font-semibold">{score}</span></p>
-          <PriorityBadge priority={priority} />
-        </div>
-
-        <Button type="submit">Submit Complaint</Button>
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? "Submitting..." : "Submit Complaint"}
+        </Button>
       </form>
     </Card>
   );

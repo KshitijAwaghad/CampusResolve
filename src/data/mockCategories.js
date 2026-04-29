@@ -3,7 +3,9 @@ export const mockCategories = [
   "Classroom",
   "Laboratory",
   "Computer Lab",
-  "Hostel",
+  "Hostel 1",
+  "Hostel 2",
+  "Hostel 3",
   "Library",
   "Washroom",
   "Network",
@@ -13,4 +15,4 @@ export const mockCategories = [
 
 export const locationTypes = mockCategories;
 
-export const buildings = ["Block A", "Block B", "Main Library", "Hostel 1", "Hostel 2", "Lab Complex"];
+export const buildings = ["Block A", "Block B", "Main Library", "Hostel 1", "Hostel 2", "Hostel 3", "Lab Complex"];

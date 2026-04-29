@@ -1,6 +1,6 @@
 import { NavLink } from "react-router-dom";
 import logo from "../../assets/logo.svg";
-import { BarChart3, Building2, ClipboardList, Home, LayoutDashboard, School, ShieldAlert } from "lucide-react";
+import { BarChart3, Building2, ClipboardList, Home, LayoutDashboard, School, ShieldAlert, Users } from "lucide-react";
 import clsx from "../../utils/clsx";
 import { useAuth } from "../../context/AuthContext";
 
@@ -17,7 +17,8 @@ const navByRole = {
   ],
   admin: [
     { to: "/admin/dashboard", label: "Admin", icon: BarChart3 },
-    { to: "/admin/manage", label: "Manage", icon: ClipboardList }
+    { to: "/admin/manage", label: "Manage", icon: ClipboardList },
+    { to: "/admin/users", label: "Users", icon: Users }
   ]
 };
 

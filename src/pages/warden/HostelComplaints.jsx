@@ -4,11 +4,11 @@ import { useComplaints } from "../../context/ComplaintContext";
 import Button from "../../components/ui/Button";
 
 function HostelComplaints() {
-  const { complaints, updateStatus, setResolutionProof, escalateComplaint } = useComplaints();
+  const { complaints, updateStatus, setResolutionProof } = useComplaints();
   const [proofMap, setProofMap] = useState({});
 
   const assigned = complaints.filter(
-    (c) => (c.locationType === "Hostel" || c.building?.includes("Hostel")) && c.assignedTo
+    (c) => (c.locationType?.includes("Hostel") || c.building?.includes("Hostel")) && c.assignedTo
   );
 
   const uploadProof = (id, file) => {
@@ -32,7 +32,6 @@ function HostelComplaints() {
           <ComplaintCard
             key={complaint.id}
             complaint={complaint}
-            onExpire={escalateComplaint}
             actions={
               <div className="space-y-3">
                 <div className="flex flex-wrap gap-2">

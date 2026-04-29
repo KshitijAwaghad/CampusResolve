@@ -1,9 +1,8 @@
 import Card from "./ui/Card";
 import PriorityBadge from "./PriorityBadge";
-import CountdownTimer from "./CountdownTimer";
 import Badge from "./ui/Badge";
 
-function ComplaintCard({ complaint, onExpire, actions }) {
+function ComplaintCard({ complaint, actions }) {
   const statusVariant =
     complaint.status === "Resolved" || complaint.status === "Closed"
       ? "success"
@@ -23,7 +22,6 @@ function ComplaintCard({ complaint, onExpire, actions }) {
       <p className="text-sm text-slate-600 dark:text-slate-300">{complaint.description}</p>
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant={statusVariant}>{complaint.status}</Badge>
-        <CountdownTimer complaint={complaint} onExpire={onExpire} />
         {complaint.assignedTo && <Badge>{complaint.assignedTo}</Badge>}
       </div>
       {actions && <div className="pt-1">{actions}</div>}

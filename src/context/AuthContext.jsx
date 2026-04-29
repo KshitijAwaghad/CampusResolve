@@ -1,85 +1,119 @@
-import { createContext, useContext, useMemo, useState } from "react";
-import { mockUsers } from "../data/mockUsers";
+import { createContext, useContext, useEffect, useState } from "react";
+import { supabase } from "../utils/supabaseClient";
 
 const AuthContext = createContext(null);
-const USERS_KEY = "cr-users";
-const USERS_SEED_VERSION_KEY = "cr-users-seed-version";
-const USERS_SEED_VERSION = "2";
-const VALID_ROLES = new Set(["student", "faculty", "warden", "admin"]);
-
-function getInitialUsers() {
-  const storedVersion = localStorage.getItem(USERS_SEED_VERSION_KEY);
-  if (storedVersion !== USERS_SEED_VERSION) {
-    localStorage.setItem(USERS_KEY, JSON.stringify(mockUsers));
-    localStorage.setItem(USERS_SEED_VERSION_KEY, USERS_SEED_VERSION);
-    return mockUsers;
-  }
-
-  const stored = localStorage.getItem(USERS_KEY);
-  if (stored) {
-    const parsed = JSON.parse(stored);
-    const valid = Array.isArray(parsed) && parsed.every(
-      (u) => u?.id && u?.name && u?.email && u?.role && VALID_ROLES.has(u.role) && u?.password
-    );
-    if (valid) return parsed;
-  }
-  localStorage.setItem(USERS_KEY, JSON.stringify(mockUsers));
-  localStorage.setItem(USERS_SEED_VERSION_KEY, USERS_SEED_VERSION);
-  return mockUsers;
-}
 
 export function AuthProvider({ children }) {
-  const [role, setRole] = useState(() => localStorage.getItem("cr-role") || "");
-  const [userName, setUserName] = useState(() => localStorage.getItem("cr-user-name") || "");
-  const [userEmail, setUserEmail] = useState(() => localStorage.getItem("cr-user-email") || "");
-  const [users, setUsers] = useState(getInitialUsers);
+  const [session, setSession] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const login = (nextRole, user = null) => {
-    localStorage.setItem("cr-role", nextRole);
-    setRole(nextRole);
+  const user = session?.user || null;
+  const role = user?.user_metadata?.role || "";
+  const userName = user?.user_metadata?.name || "";
+  const userEmail = user?.email || "";
 
-    const resolvedName = user?.name || "";
-    const resolvedEmail = user?.email || "";
-    localStorage.setItem("cr-user-name", resolvedName);
-    localStorage.setItem("cr-user-email", resolvedEmail);
-    setUserName(resolvedName);
-    setUserEmail(resolvedEmail);
-  };
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setLoading(false);
+    });
 
-  const logout = () => {
-    localStorage.removeItem("cr-role");
-    localStorage.removeItem("cr-user-name");
-    localStorage.removeItem("cr-user-email");
-    setRole("");
-    setUserName("");
-    setUserEmail("");
-  };
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setLoading(false);
+    });
 
-  const registerUser = ({ name, email, role: nextRole, department = "", hostel = "", password }) => {
-    const currentUsers = users;
-    const nextId = currentUsers.length > 0 ? Math.max(...currentUsers.map((u) => Number(u.id))) + 1 : 1;
-    const newUser = {
-      id: nextId,
-      name,
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const login = async (email, password) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
-      role: nextRole.toLowerCase(),
       password,
-      ...(department ? { department } : {}),
-      ...(hostel ? { hostel } : {})
-    };
-
-    const updated = [...currentUsers, newUser];
-    setUsers(updated);
-    localStorage.setItem(USERS_KEY, JSON.stringify(updated));
-    return newUser;
+    });
+    if (error) throw error;
+    return data;
   };
 
-  const value = useMemo(
-    () => ({ role, userName, userEmail, users, login, logout, registerUser }),
-    [role, userName, userEmail, users]
-  );
+  const logout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+  };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  const registerUser = async ({ name, email, role: nextRole, department = "", hostel = "", password }) => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          name,
+          role: nextRole.toLowerCase(),
+          department,
+          hostel,
+        },
+      },
+    });
+    if (error) throw error;
+    return data.user;
+  };
+
+  const createManagedUser = async ({ name, email, role: nextRole, department = "", hostel = "", password }) => {
+    const provisionUrl = import.meta.env.VITE_ADMIN_PROVISION_URL;
+
+    if (!provisionUrl) {
+      throw new Error("Admin provisioning endpoint is not configured. Set VITE_ADMIN_PROVISION_URL first.");
+    }
+
+    if (!session?.access_token) {
+      throw new Error("You must be signed in as an admin to create managed accounts.");
+    }
+
+    const response = await fetch(provisionUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        role: nextRole.toLowerCase(),
+        department: department.trim(),
+        hostel: hostel.trim(),
+        password,
+      }),
+    });
+
+    let payload = {};
+    try {
+      payload = await response.json();
+    } catch {
+      payload = {};
+    }
+
+    if (!response.ok) {
+      throw new Error(payload.error || payload.message || "Failed to create managed user.");
+    }
+
+    return payload.user || payload;
+  };
+
+  const value = {
+    session,
+    user,
+    role,
+    userName,
+    userEmail,
+    loading,
+    login,
+    logout,
+    registerUser,
+    createManagedUser,
+  };
+
+  return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

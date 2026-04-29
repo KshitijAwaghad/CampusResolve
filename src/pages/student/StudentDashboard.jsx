@@ -2,16 +2,20 @@ import { Link } from "react-router-dom";
 import Card from "../../components/ui/Card";
 import { useComplaints } from "../../context/ComplaintContext";
 import Button from "../../components/ui/Button";
+import { useAuth } from "../../context/AuthContext";
 
 function StudentDashboard() {
   const { complaints } = useComplaints();
-  const myComplaints = complaints.filter((c) => c.createdBy === "Student" || c.createdBy === "Aarav Sharma");
+  const { userEmail, userName } = useAuth();
+  const myComplaints = complaints.filter(
+    (c) => c.createdByEmail === userEmail || (!c.createdByEmail && c.createdBy === userName)
+  );
 
   return (
     <div className="space-y-4">
       <div>
         <h2 className="page-title">Student Dashboard</h2>
-        <p className="page-subtitle">Track your complaints, SLA status, and resolution progress.</p>
+        <p className="page-subtitle">Track your complaints, status, and resolution progress.</p>
       </div>
       <div className="grid gap-4 md:grid-cols-3">
         <Card><p className="text-xs font-bold uppercase tracking-wider text-slate-500">Total Submitted</p><p className="text-3xl font-extrabold">{myComplaints.length}</p></Card>

@@ -1,53 +1,44 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Card from "../../components/ui/Card";
-import Select from "../../components/ui/Select";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import ThemeToggle from "../../components/ui/ThemeToggle";
 import { useAuth } from "../../context/AuthContext";
 
-const roles = ["Student", "Faculty", "Warden", "Admin"];
-
 const roleHome = {
   student: "/student/dashboard",
   faculty: "/faculty/dashboard",
   warden: "/warden/dashboard",
-  admin: "/admin/dashboard"
+  admin: "/admin/dashboard",
 };
 
 function Login() {
-  const [role, setRole] = useState("Student");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const { login, users } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
+  const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    const normalizedRole = role.toLowerCase();
-    const normalizedEmail = email.trim().toLowerCase();
-    const matchedUser = users.find((user) => user.email.toLowerCase() === normalizedEmail);
-
-    if (!matchedUser) {
-      setError("Invalid email address.");
-      return;
-    }
-
-    if (matchedUser.role !== normalizedRole) {
-      setError("Email does not match selected role.");
-      return;
-    }
-
-    if (matchedUser.password !== password) {
-      setError("Incorrect password.");
-      return;
-    }
-
+    setIsLoading(true);
     setError("");
-    login(normalizedRole, matchedUser);
-    navigate(roleHome[normalizedRole]);
+
+    try {
+      const data = await login(email, password);
+      const userRole = data.user?.user_metadata?.role;
+      if (userRole && roleHome[userRole]) {
+        navigate(roleHome[userRole]);
+      } else {
+        navigate("/");
+      }
+    } catch (err) {
+      setError(err.message || "Failed to sign in.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -79,13 +70,20 @@ function Login() {
             placeholder="Enter Password"
             required
           />
-          <Select label="Select Role" value={role} onChange={(e) => setRole(e.target.value)} options={roles} />
-          {error && <p className="rounded-xl border border-rose-300 bg-rose-100/80 p-2 text-sm font-semibold text-rose-600 dark:border-rose-900 dark:bg-rose-900/30">{error}</p>}
-          <Button type="submit" className="w-full py-2.5">Continue</Button>
+          {error && (
+            <p className="rounded-xl border border-rose-300 bg-rose-100/80 p-2 text-sm font-semibold text-rose-600 dark:border-rose-900 dark:bg-rose-900/30">
+              {error}
+            </p>
+          )}
+          <Button type="submit" className="w-full py-2.5" disabled={isLoading}>
+            {isLoading ? "Signing In..." : "Continue"}
+          </Button>
         </form>
         <div className="mt-4 text-center text-sm">
           <span className="text-slate-500">Need an account? </span>
-          <Link to="/register" className="font-bold text-brand-600 hover:text-brand-500">Register new user</Link>
+          <Link to="/register" className="font-bold text-brand-600 hover:text-brand-500">
+            Register new user
+          </Link>
         </div>
       </Card>
     </div>

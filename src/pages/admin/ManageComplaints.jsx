@@ -16,7 +16,6 @@ function ManageComplaints() {
           <ComplaintCard
             key={complaint.id}
             complaint={complaint}
-            onExpire={escalateComplaint}
             actions={
               <div className="flex gap-2">
                 <Button variant="danger" onClick={() => escalateComplaint(complaint.id)}>Escalate</Button>
